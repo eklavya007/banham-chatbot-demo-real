@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banham Security Chatbot Demo</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f3f3;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: #d71920; /* Banham red */
+            color: white;
+            padding: 18px;
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        #chat-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 30px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        #messages {
+            height: 500px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+
+        .message {
+            margin: 12px 0;
+            padding: 12px 16px;
+            border-radius: 10px;
+            max-width: 85%;
+            line-height: 1.4em;
+        }
+
+        .user {
+            background: #d71920;
+            color: white;
+            margin-left: auto;
+        }
+
+        .ai {
+            background: #e9e9e9;
+            color: #333;
+            margin-right: auto;
+        }
+
+        #input-area {
+            display: flex;
+            margin-top: 15px;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            background: #d71920;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #b9151c;
+        }
+    </style>
+</head>
+<body>
+
+<header>Banham Security Chatbot Demo</header>
+
+<div id="chat-container">
+    <div id="messages"></div>
+
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Ask me anything about Banham security..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+async function sendMessage() {
+    const input = document.getElementById("user-input");
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMessage(text, "user");
+    input.value = "";
+
+    const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text })
+    });
+
+    const data = await response.json();
+    addMessage(data.reply, "ai");
+}
+
+function addMessage(text, sender) {
+    const container = document.getElementById("messages");
+
+    const msg = document.createElement("div");
+    msg.classList.add("message", sender);
+    msg.textContent = text;
+
+    container.appendChild(msg);
+    container.scrollTop = container.scrollHeight;
+}
+</script>
+
+</body>
+</html>
