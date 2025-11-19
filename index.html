@@ -112,23 +112,33 @@ async function sendMessage() {
     addMessage(text, "user");
     input.value = "";
 
-    const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-    });
+    try {
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
 
-    const data = await response.json();
-    addMessage(data.reply, "ai");
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("API error:", errorText);
+            addMessage("There was a problem talking to the server.", "ai");
+            return;
+        }
+
+        const data = await response.json();
+        addMessage(data.reply || "I couldn't generate a response.", "ai");
+    } catch (err) {
+        console.error("Fetch error:", err);
+        addMessage("Network error – please try again.", "ai");
+    }
 }
 
 function addMessage(text, sender) {
     const container = document.getElementById("messages");
-
     const msg = document.createElement("div");
     msg.classList.add("message", sender);
     msg.textContent = text;
-
     container.appendChild(msg);
     container.scrollTop = container.scrollHeight;
 }
@@ -136,3 +146,4 @@ function addMessage(text, sender) {
 
 </body>
 </html>
+
