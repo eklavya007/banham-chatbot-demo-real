@@ -1,21 +1,24 @@
-export default async function handler(req, res) {
+export const config = {
+  runtime: "edge",
+};
+
+export default async function handler(req) {
   try {
     if (req.method !== "POST") {
-      res.statusCode = 405;
-      return res.json({ error: "Method not allowed" });
+      return new Response(
+        JSON.stringify({ error: "Method not allowed" }),
+        { status: 405, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    // Read and parse the request body
-    let body = "";
-    for await (const chunk of req) {
-      body += chunk;
-    }
+    const body = await req.json();
+    const userMessage = body.message || "";
 
-    const { message } = JSON.parse(body || "{}");
-
-    if (!message) {
-      res.statusCode = 400;
-      return res.json({ error: "No message provided" });
+    if (!userMessage) {
+      return new Response(
+        JSON.stringify({ error: "No message provided" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const systemPrompt = `
@@ -57,38 +60,44 @@ Always try to guide the user toward:
 - finding the correct solution for their property.
     `;
 
-    // Call OpenAI directly via fetch (no SDK needed)
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: "gpt-4.1-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: message }
-        ]
-      })
+          { role: "user", content: userMessage },
+        ],
+      }),
     });
 
     if (!openaiRes.ok) {
       const errorText = await openaiRes.text();
       console.error("OpenAI API error:", errorText);
-      res.statusCode = 500;
-      return res.json({ error: "OpenAI API error", details: errorText });
+      return new Response(
+        JSON.stringify({ error: "OpenAI API error", details: errorText }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const data = await openaiRes.json();
-    const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+    const reply =
+      data.choices?.[0]?.message?.content ||
+      "Sorry, I couldn't generate a response.";
 
-    res.statusCode = 200;
-    return res.json({ reply });
-
+    return new Response(
+      JSON.stringify({ reply }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   } catch (err) {
     console.error("Server error:", err);
-    res.statusCode = 500;
-    return res.json({ error: "Server error", details: String(err) });
+    return new Response(
+      JSON.stringify({ error: "Server error", details: String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }
