@@ -1,15 +1,22 @@
-import OpenAI from "openai";
-
 export default async function handler(req, res) {
+  try {
     if (req.method !== "POST") {
-        return res.status(405).json({ error: "Method not allowed" });
+      res.statusCode = 405;
+      return res.json({ error: "Method not allowed" });
     }
 
-    const userMessage = req.body.message || "";
+    // Read and parse the request body
+    let body = "";
+    for await (const chunk of req) {
+      body += chunk;
+    }
 
-    const client = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY
-    });
+    const { message } = JSON.parse(body || "{}");
+
+    if (!message) {
+      res.statusCode = 400;
+      return res.json({ error: "No message provided" });
+    }
 
     const systemPrompt = `
 You are the official Banham Security Support Chatbot.
@@ -26,8 +33,6 @@ You must always provide accurate information about:
 - Installation process
 - Quotes & site surveys
 - Banham response team
-- Opening hours
-- Emergency numbers
 - Keyholding
 - Commercial security products
 - Residential security products
@@ -49,18 +54,41 @@ Always try to guide the user toward:
 - booking a survey
 - calling customer service
 - understanding product differences
-- finding the correct solution for their property
+- finding the correct solution for their property.
     `;
 
-    const completion = await client.chat.completions.create({
-        model: "gpt-4.1",
+    // Call OpenAI directly via fetch (no SDK needed)
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
         messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage }
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
         ]
+      })
     });
 
-    res.status(200).json({
-        reply: completion.choices[0].message.content
-    });
+    if (!openaiRes.ok) {
+      const errorText = await openaiRes.text();
+      console.error("OpenAI API error:", errorText);
+      res.statusCode = 500;
+      return res.json({ error: "OpenAI API error", details: errorText });
+    }
+
+    const data = await openaiRes.json();
+    const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+
+    res.statusCode = 200;
+    return res.json({ reply });
+
+  } catch (err) {
+    console.error("Server error:", err);
+    res.statusCode = 500;
+    return res.json({ error: "Server error", details: String(err) });
+  }
 }
